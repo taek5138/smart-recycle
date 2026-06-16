@@ -180,15 +180,15 @@ try:
         print(f"distance: {dist} cm")
 
         if dist < DETECT_DIST:
-            if not lid_open:
-                lcd_print("Detected!", "Opening lid...")
-                open_lid()
-                lid_open = True
-
             now = time.time()
             if now - last_classify_time > CLASSIFY_INTERVAL:
-                capture_and_classify()
+                lcd_print("Scanning...", "Please wait")
+                capture_and_classify()   # 1. 먼저 분류
                 last_classify_time = now
+
+            if not lid_open:
+                open_lid()               # 2. 분류 후 뚜껑 열림
+                lid_open = True
 
         else:
             if lid_open:
