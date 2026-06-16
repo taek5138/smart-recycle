@@ -2,6 +2,8 @@ import cv2
 import lgpio
 import time
 import glob
+import adafruit_dht
+import board
 from RPLCD.i2c import CharLCD
 from gpiozero import AngularServo
 from ultralytics import YOLO
@@ -17,6 +19,19 @@ def lcd_print(line1, line2=""):
     lcd.cursor_pos = (1, 0)
     lcd.write_string(line2[:16])
 
+# DHT11
+dht_sensor = adafruit_dht.DHT11(board.D4)
+
+def read_dht():
+    try:
+        temp = dht_sensor.temperature
+        humi = dht_sensor.humidity
+        if temp is not None and humi is not None:
+            return temp, humi
+    except RuntimeError:
+        pass  # DHT11 간헐적 오류 무시
+    return None, None
+
 # YOLO
 model_path = glob.glob('/home/eun/model/*/models/yolo11n_recycle_ncnn_model')[0]
 model = YOLO(model_path, task='detect')
@@ -27,6 +42,7 @@ TRIG = 23
 ECHO = 24
 DETECT_DIST = 30
 CLASSIFY_INTERVAL = 5
+DHT_INTERVAL = 10  # 온습도 표시 간격 (초)
 
 LED_PINS = {
     "plastic": 17,
@@ -62,7 +78,7 @@ lgpio.gpio_claim_input(h, ECHO)
 for pin in LED_PINS.values():
     lgpio.gpio_claim_output(h, pin)
 
-# Servo (0도=닫힘, 90도=열림)
+# Servo
 servo = AngularServo(18, min_angle=0, max_angle=180,
                      min_pulse_width=0.0005, max_pulse_width=0.0025)
 
@@ -117,7 +133,7 @@ def capture_and_classify():
     ret, frame = cap.read()
     if not ret:
         lcd_print("Camera Error", "Try again")
-        return
+        return False
 
     results = model.predict(frame, imgsz=640, device="cpu",
                             conf=0.35, verbose=False)
@@ -151,14 +167,31 @@ def capture_and_classify():
     if detected == "glass":
         lcd_print("Glass", "Glass bin")
         all_leds_off()
+        # 분류 후 온습도 표시
+        time.sleep(2)
+        show_dht_on_lcd()
+        return True
     elif detected and CATEGORY_MAP.get(detected):
         category = CATEGORY_MAP[detected]
         line1, line2 = LCD_MSG[category]
         lcd_print(line1, line2)
         blink_led(category)
+        # 분류 후 온습도 표시
+        time.sleep(2)
+        show_dht_on_lcd()
+        return True
     else:
         lcd_print("No item found", "Try again")
         all_leds_off()
+        return False
+
+def show_dht_on_lcd():
+    temp, humi = read_dht()
+    if temp is not None:
+        lcd_print(f"Temp: {temp}C", f"Humi: {humi}%")
+        print(f"DHT11 - Temp: {temp}C, Humi: {humi}%")
+    else:
+        lcd_print("DHT11 Error", "Retrying...")
 
 # Main loop
 try:
@@ -168,6 +201,7 @@ try:
     close_lid()
     lid_open = False
     last_classify_time = 0
+    last_dht_time = 0
     print("system ready!")
 
     while True:
@@ -183,12 +217,13 @@ try:
             now = time.time()
             if now - last_classify_time > CLASSIFY_INTERVAL:
                 lcd_print("Scanning...", "Please wait")
-                capture_and_classify()   # 1. 먼저 분류
+                success = capture_and_classify()
                 last_classify_time = now
+                last_dht_time = now  # 분류 직후 DHT 타이머 리셋
 
-            if not lid_open:
-                open_lid()               # 2. 분류 후 뚜껑 열림
-                lid_open = True
+                if success and not lid_open:
+                    open_lid()
+                    lid_open = True
 
         else:
             if lid_open:
@@ -196,6 +231,14 @@ try:
                 all_leds_off()
                 lcd_print("Smart Recycle", "Ready...")
                 lid_open = False
+
+            # 대기 중 주기적 온습도 표시
+            now = time.time()
+            if now - last_dht_time > DHT_INTERVAL:
+                show_dht_on_lcd()
+                last_dht_time = now
+                time.sleep(2)
+                lcd_print("Smart Recycle", "Ready...")
 
         time.sleep(0.5)
 
@@ -207,3 +250,4 @@ except KeyboardInterrupt:
     cap.release()
     cv2.destroyAllWindows()
     lgpio.gpiochip_close(h)
+    dht_sensor.exit()
