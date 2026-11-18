@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# smart-recycle
+waste_*.jpg
+*_ncnn_model/
+*.pt

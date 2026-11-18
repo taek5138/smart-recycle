@@ -1,0 +1,10 @@
+# Raspberry Pi 5 (Raspberry Pi OS Bookworm) 기준
+ultralytics
+ncnn
+opencv-python
+lgpio
+gpiozero
+RPLCD
+smbus2
+adafruit-circuitpython-dht
+adafruit-blinka

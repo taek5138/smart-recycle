@@ -1,3 +1,4 @@
+import os
 import cv2
 import lgpio
 import time
@@ -41,7 +42,15 @@ def show_dht_on_lcd():
         lcd_print("DHT11 Error", "Retrying...")
 
 # YOLO
-model_path = glob.glob('/home/eun/model/*/models/yolo11n_recycle_ncnn_model')[0]
+# MODEL_PATH 환경변수로 모델 폴더를 지정할 수 있음 (없으면 기존 경로에서 탐색)
+model_path = os.environ.get("MODEL_PATH")
+if not model_path:
+    found = glob.glob('/home/eun/model/*/models/yolo11n_recycle_ncnn_model')
+    if not found:
+        raise FileNotFoundError(
+            "NCNN 모델을 찾을 수 없습니다. "
+            "MODEL_PATH=/path/to/yolo11n_recycle_ncnn_model 로 지정하세요.")
+    model_path = found[0]
 model = YOLO(model_path, task='detect')
 NAMES = {0: "plastic", 1: "can", 2: "glass", 3: "paper"}
 
