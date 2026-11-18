@@ -4,9 +4,11 @@
 
 > 2026년 1학기 IoT 텀프로젝트 (가천대학교 컴퓨터공학과)
 
-<!-- 시연 영상/GIF를 docs/demo.gif 로 추가한 뒤 아래 주석을 해제하세요
-![demo](docs/demo.gif)
--->
+<p align="center">
+  <img src="docs/demo.gif" width="270" alt="캔을 인식해 LCD에 Can / Metal, Red bin을 표시하고 빨간 LED가 켜지는 시연">
+  <br/>
+  <sub>캔을 대면 LCD에 <code>Can / Metal · Red bin</code>이 뜨고 빨간 LED가 켜집니다</sub>
+</p>
 
 ---
 
